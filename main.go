@@ -1,46 +1,29 @@
 package main
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
-	"os"
 
-	"github.com/gorilla/mux"
-	_"github.com/lib/pq"
-	"github.com/joho/godotenv"
+	"github.com/SUD77/goCrudApp/internal/config"
+	"github.com/SUD77/goCrudApp/internal/db"
+	"github.com/SUD77/goCrudApp/internal/router"
 )
 
-func init() {
-
-	//1. Load .env into environment
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, continuing with existing env vars")
-	}
-}
-
 func main() {
+	// 1) Load and validate environment (loads .env)
+	cfg := config.Load()
 
-	//2. Read db url fromm env
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		log.Fatal("Database_URL is not set. Please check your .env")
-	}
-
-	//3. Open the db connection
-	db, err := sql.Open("postgres", dsn)
+	// 2) Connect to the database
+	conn, err := db.Connect(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal("cannot connect to db: ", err)
+		log.Fatalf("DB setup failed: %v", err)
 	}
-	defer db.Close()
+	defer conn.Close()
 
-	// verify connectivity
-	if err := db.Ping(); err != nil {
-		log.Fatal("cannot png db:", err)
-	}
+	// 3) Wire up HTTP routes
+	r := router.Setup(conn)
 
-	r := mux.NewRouter()
-
+	// 4) Start the server
 	log.Println("Server listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
